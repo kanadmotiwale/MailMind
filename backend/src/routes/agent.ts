@@ -49,7 +49,7 @@ async function runAgentBackground(): Promise<void> {
       from: email.from_addr || '',
     }
     if (i + 1 < emails.length) {
-      await new Promise(r => setTimeout(r, 4000))
+      await new Promise(r => setTimeout(r, 2000))
     }
   }
 
