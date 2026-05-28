@@ -1,48 +1,47 @@
-import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai'
 import { Email, ToolCallResult, ToolName } from '../types'
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-})
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!)
 
-const SYSTEM_PROMPT = `You are an intelligent email triage assistant. For every email you receive, you MUST call at least one tool to handle it. You may call multiple tools if the email warrants multiple actions.
+const SYSTEM_PROMPT = `You are an intelligent email triage assistant. For every email you receive, you MUST call at least one function to handle it. You may call multiple functions if the email warrants multiple actions.
 
 Rules:
-1. ALWAYS call at least one tool per email — never return without a tool call.
-2. Include a "rationale" field in every tool call explaining in 1-2 sentences why you chose this tool.
-3. If an email needs both a response AND escalation, call both tools.
+1. ALWAYS call at least one function per email — never return without a function call.
+2. Include a "rationale" field in every function call explaining in 1-2 sentences why you chose this action.
+3. If an email needs both a response AND escalation, call both functions.
 4. Be precise with arguments — extract real values from the email (actual recipient addresses, actual subjects, etc).
 5. For draft_response, write a complete, realistic reply body — not a placeholder.
-6. Analyze the full email body carefully before deciding on tools.`
+6. Analyze the full email body carefully before deciding on functions.`
 
-const TOOLS: Anthropic.Tool[] = [
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const FUNCTION_DECLARATIONS: any[] = [
   {
     name: 'schedule_meeting',
     description:
       'Book a meeting when the email proposes one, requests a time, or needs scheduling coordination.',
-    input_schema: {
-      type: 'object',
+    parameters: {
+      type: SchemaType.OBJECT,
       properties: {
         attendees: {
-          type: 'array',
-          items: { type: 'string' },
+          type: SchemaType.ARRAY,
+          items: { type: SchemaType.STRING },
           description: 'Email addresses of attendees',
         },
         proposed_time: {
-          type: 'string',
+          type: SchemaType.STRING,
           description: 'Proposed meeting time in ISO 8601 or natural language',
         },
         duration_minutes: {
-          type: 'number',
+          type: SchemaType.NUMBER,
           description: 'Expected duration in minutes',
         },
         subject: {
-          type: 'string',
+          type: SchemaType.STRING,
           description: 'Meeting title/subject',
         },
         rationale: {
-          type: 'string',
-          description: '1-2 sentence explanation of why this tool was chosen',
+          type: SchemaType.STRING,
+          description: '1-2 sentence explanation of why this function was chosen',
         },
       },
       required: ['attendees', 'subject', 'rationale'],
@@ -52,23 +51,22 @@ const TOOLS: Anthropic.Tool[] = [
     name: 'draft_response',
     description:
       'Draft a reply when the email asks a question, requests information, or expects a response.',
-    input_schema: {
-      type: 'object',
+    parameters: {
+      type: SchemaType.OBJECT,
       properties: {
-        to: { type: 'string', description: 'Recipient email address' },
-        subject: { type: 'string', description: 'Email subject with Re: prefix' },
+        to: { type: SchemaType.STRING, description: 'Recipient email address' },
+        subject: { type: SchemaType.STRING, description: 'Email subject with Re: prefix' },
         body: {
-          type: 'string',
+          type: SchemaType.STRING,
           description: 'Full drafted reply body (professional tone)',
         },
         tone: {
-          type: 'string',
-          enum: ['professional', 'apologetic_professional', 'friendly', 'formal'],
-          description: 'Tone of the reply',
+          type: SchemaType.STRING,
+          description: 'Tone of the reply: professional, apologetic_professional, friendly, or formal',
         },
         rationale: {
-          type: 'string',
-          description: '1-2 sentence explanation of why this tool was chosen',
+          type: SchemaType.STRING,
+          description: '1-2 sentence explanation of why this function was chosen',
         },
       },
       required: ['to', 'subject', 'body', 'tone', 'rationale'],
@@ -78,29 +76,28 @@ const TOOLS: Anthropic.Tool[] = [
     name: 'escalate_to_manager',
     description:
       'Flag emails showing client dissatisfaction, complaints, legal risk, financial concerns, or situations requiring management attention.',
-    input_schema: {
-      type: 'object',
+    parameters: {
+      type: SchemaType.OBJECT,
       properties: {
         reason: {
-          type: 'string',
+          type: SchemaType.STRING,
           description: 'Detailed reason for escalation',
         },
         priority: {
-          type: 'string',
-          enum: ['low', 'medium', 'high', 'critical'],
-          description: 'Escalation priority level',
+          type: SchemaType.STRING,
+          description: 'Escalation priority level: low, medium, high, or critical',
         },
         original_email_id: {
-          type: 'string',
+          type: SchemaType.STRING,
           description: 'ID of the email being escalated',
         },
         suggested_owner: {
-          type: 'string',
+          type: SchemaType.STRING,
           description: 'Suggested manager or owner email',
         },
         rationale: {
-          type: 'string',
-          description: '1-2 sentence explanation of why this tool was chosen',
+          type: SchemaType.STRING,
+          description: '1-2 sentence explanation of why this function was chosen',
         },
       },
       required: ['reason', 'priority', 'original_email_id', 'rationale'],
@@ -110,25 +107,25 @@ const TOOLS: Anthropic.Tool[] = [
     name: 'create_task',
     description:
       'Create a follow-up task when the email contains action items, deliverables, or things that need to be done.',
-    input_schema: {
-      type: 'object',
+    parameters: {
+      type: SchemaType.OBJECT,
       properties: {
-        title: { type: 'string', description: 'Short task title' },
+        title: { type: SchemaType.STRING, description: 'Short task title' },
         due_date: {
-          type: 'string',
+          type: SchemaType.STRING,
           description: 'Due date in ISO 8601 or natural language',
         },
         assignee: {
-          type: 'string',
+          type: SchemaType.STRING,
           description: 'Person responsible for the task',
         },
         notes: {
-          type: 'string',
+          type: SchemaType.STRING,
           description: 'Additional context or details for the task',
         },
         rationale: {
-          type: 'string',
-          description: '1-2 sentence explanation of why this tool was chosen',
+          type: SchemaType.STRING,
+          description: '1-2 sentence explanation of why this function was chosen',
         },
       },
       required: ['title', 'rationale'],
@@ -138,17 +135,17 @@ const TOOLS: Anthropic.Tool[] = [
     name: 'flag_urgent',
     description:
       'Mark emails that are time-sensitive, have deadlines, or need attention soon but do not require an immediate reply.',
-    input_schema: {
-      type: 'object',
+    parameters: {
+      type: SchemaType.OBJECT,
       properties: {
-        reason: { type: 'string', description: 'Why this email is urgent' },
+        reason: { type: SchemaType.STRING, description: 'Why this email is urgent' },
         deadline: {
-          type: 'string',
+          type: SchemaType.STRING,
           description: 'The deadline or time constraint mentioned',
         },
         rationale: {
-          type: 'string',
-          description: '1-2 sentence explanation of why this tool was chosen',
+          type: SchemaType.STRING,
+          description: '1-2 sentence explanation of why this function was chosen',
         },
       },
       required: ['reason', 'rationale'],
@@ -158,31 +155,31 @@ const TOOLS: Anthropic.Tool[] = [
     name: 'archive_no_action',
     description:
       'Archive newsletters, FYI emails, auto-generated notifications, announcements, or any email that requires no action.',
-    input_schema: {
-      type: 'object',
+    parameters: {
+      type: SchemaType.OBJECT,
       properties: {
         category: {
-          type: 'string',
-          enum: [
-            'newsletter',
-            'fyi',
-            'auto_generated',
-            'announcement',
-            'internal_update',
-            'other',
-          ],
-          description: 'Email category',
+          type: SchemaType.STRING,
+          description: 'Email category: newsletter, fyi, auto_generated, announcement, internal_update, or other',
         },
-        reason: { type: 'string', description: 'Why no action is needed' },
+        reason: { type: SchemaType.STRING, description: 'Why no action is needed' },
         rationale: {
-          type: 'string',
-          description: '1-2 sentence explanation of why this tool was chosen',
+          type: SchemaType.STRING,
+          description: '1-2 sentence explanation of why this function was chosen',
         },
       },
       required: ['category', 'reason', 'rationale'],
     },
   },
 ]
+
+const model = genAI.getGenerativeModel({
+  model: 'gemini-1.5-flash',
+  systemInstruction: SYSTEM_PROMPT,
+  tools: [{ functionDeclarations: FUNCTION_DECLARATIONS }],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  toolConfig: { functionCallingConfig: { mode: 'ANY' as any } },
+})
 
 export async function processEmail(email: Email): Promise<ToolCallResult[]> {
   try {
@@ -195,28 +192,17 @@ export async function processEmail(email: Email): Promise<ToolCallResult[]> {
       email.body.slice(0, 4000),
     ].join('\n')
 
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2000,
-      system: [
-        {
-          type: 'text',
-          text: SYSTEM_PROMPT,
-          cache_control: { type: 'ephemeral' },
-        },
-      ],
-      tools: TOOLS,
-      tool_choice: { type: 'any' },
-      messages: [{ role: 'user', content: emailText }],
-    })
+    const result = await model.generateContent(emailText)
+    const response = result.response
 
     const results: ToolCallResult[] = []
-    for (const block of response.content) {
-      if (block.type === 'tool_use') {
-        const args = block.input as Record<string, unknown>
+
+    for (const part of response.candidates?.[0]?.content?.parts ?? []) {
+      if (part.functionCall) {
+        const args = part.functionCall.args as Record<string, unknown>
         const rationale = typeof args.rationale === 'string' ? args.rationale : ''
         results.push({
-          toolName: block.name as ToolName,
+          toolName: part.functionCall.name as ToolName,
           arguments: args,
           rationale,
         })
@@ -229,7 +215,7 @@ export async function processEmail(email: Email): Promise<ToolCallResult[]> {
           {
             toolName: 'agent_error',
             arguments: {},
-            rationale: 'No tool calls returned by model despite tool_choice: any',
+            rationale: 'No function calls returned by model despite mode: ANY',
           },
         ]
   } catch (err) {

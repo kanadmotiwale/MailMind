@@ -1,5 +1,6 @@
 """
-Extract a representative sample of 180 emails from the Enron dataset.
+Extract a curated sample of 180 emails from the Enron dataset, balanced
+across categories that trigger each AI triage tool.
 
 Usage:
   python scripts/extract_emails.py
@@ -20,8 +21,76 @@ ENRON_DIR = "./maildir"
 OUTPUT_PATH = "./data/sample_emails.csv"
 TARGET_COUNT = 180
 MAX_BODY_CHARS = 3000
-TARGET_MAILBOXES = 10
-TARGET_FOLDERS = {"inbox", "sent", "sent_items", "discussion_threads", "all_documents"}
+
+# How many emails to target per tool category
+CATEGORY_TARGETS = {
+    "schedule_meeting":     30,
+    "draft_response":       30,
+    "escalate_to_manager":  25,
+    "create_task":          30,
+    "flag_urgent":          25,
+    "archive_no_action":    40,
+}
+
+# Keyword patterns for each category (checked against subject + body, lowercased)
+CATEGORY_PATTERNS = {
+    "schedule_meeting": [
+        r"\bmeeting\b", r"\bschedule\b", r"\bcall\b", r"\bconference\b",
+        r"\bavailable\b", r"\bwhen can\b", r"\bset up a\b", r"\bjoin us\b",
+        r"\bjoin me\b", r"\bdiscuss\b", r"\bcalendar\b", r"\bappointment\b",
+        r"\b(monday|tuesday|wednesday|thursday|friday)\b.*\b(am|pm)\b",
+        r"\b\d+(:\d+)?\s*(am|pm)\b",
+    ],
+    "draft_response": [
+        r"\?",
+        r"\bplease (let me know|advise|confirm|respond|reply|clarify)\b",
+        r"\bcan you\b", r"\bcould you\b", r"\bwould you\b",
+        r"\bwhat (do you think|is your|are your)\b",
+        r"\byour (thoughts|feedback|opinion|input)\b",
+        r"\bwaiting (for|on) your\b",
+        r"\bget back to (me|us)\b",
+        r"\blooking forward to (hearing|your)\b",
+        r"\bneed your\b",
+    ],
+    "escalate_to_manager": [
+        r"\bunacceptable\b", r"\bcomplaint\b", r"\bdissatisfied\b",
+        r"\blegal\b", r"\blawsuit\b", r"\bthreat\b", r"\bescalat\b",
+        r"\bfraud\b", r"\bviolat\b", r"\bconcern(ed|s)?\b",
+        r"\bnot happy\b", r"\bserious issue\b", r"\bsignificant (risk|loss|problem)\b",
+        r"\bregulat\b", r"\bcomplianc\b", r"\baudit\b",
+        r"\bmillion(s)?\b.*\b(loss|risk|exposure)\b",
+        r"\bcontract (breach|dispute|terminat)\b",
+    ],
+    "create_task": [
+        r"\bplease (send|prepare|review|update|complete|submit|provide|forward|check)\b",
+        r"\baction (item|required|needed)\b",
+        r"\bfollow[- ]?up\b",
+        r"\bdeadline\b", r"\bdue (by|date|on)\b",
+        r"\bneed to\b", r"\bhave to\b",
+        r"\bby (end of|tomorrow|friday|monday|next week)\b",
+        r"\bdeliver\b", r"\bassign\b", r"\bresponsib\b",
+        r"\btask\b", r"\bitem(s)? to (address|complete|handle)\b",
+    ],
+    "flag_urgent": [
+        r"\burgent\b", r"\basap\b", r"\bas soon as possible\b",
+        r"\bimmediately\b", r"\btime.?sensitive\b",
+        r"\btoday\b.*\b(must|need|require)\b",
+        r"\bcritical\b", r"\bemergency\b", r"\bpriority\b",
+        r"\bdeadline (is|was|has passed)\b",
+        r"\bno later than\b",
+        r"\bright away\b", r"\bby end of (day|business)\b",
+    ],
+    "archive_no_action": [
+        r"\bfyi\b", r"\bfor your (information|reference|records)\b",
+        r"\bno (action|response) (required|needed|necessary)\b",
+        r"\bjust (wanted to|letting you know|a heads[ -]?up)\b",
+        r"\bannouncement\b", r"\bnewsletter\b", r"\bupdate\b.*\bno action\b",
+        r"\bheads[ -]?up\b", r"\breminder\b",
+        r"\bthought you (should|might|would) know\b",
+        r"\bpassing along\b", r"\bpassing this along\b",
+        r"\bforward(ing|ed) for your\b",
+    ],
+}
 
 
 def strip_bad_chars(text: str) -> str:
@@ -39,10 +108,10 @@ def parse_email_file(path: Path) -> dict | None:
             msg_id = str(path)
 
         from_addr = strip_bad_chars(msg.get("From", "") or "").strip()
-        to_addr = strip_bad_chars(msg.get("To", "") or "").strip()
-        cc = strip_bad_chars(msg.get("X-cc", "") or msg.get("Cc", "") or "").strip()
-        subject = strip_bad_chars(msg.get("Subject", "") or "").strip()
-        date = strip_bad_chars(msg.get("Date", "") or "").strip()
+        to_addr   = strip_bad_chars(msg.get("To", "") or "").strip()
+        cc        = strip_bad_chars(msg.get("X-cc", "") or msg.get("Cc", "") or "").strip()
+        subject   = strip_bad_chars(msg.get("Subject", "") or "").strip()
+        date      = strip_bad_chars(msg.get("Date", "") or "").strip()
 
         body = ""
         if msg.is_multipart():
@@ -61,7 +130,7 @@ def parse_email_file(path: Path) -> dict | None:
         body = re.sub(r"\n{3,}", "\n\n", body)
         body = body[:MAX_BODY_CHARS]
 
-        if not body or not subject:
+        if not body or not subject or len(body) < 30:
             return None
 
         return {
@@ -78,65 +147,116 @@ def parse_email_file(path: Path) -> dict | None:
         return None
 
 
-def collect_candidates(enron_dir: Path) -> list[dict]:
-    mailboxes = [p for p in enron_dir.iterdir() if p.is_dir()]
+def classify_email(row: dict) -> str | None:
+    """Return the best matching category, or None if no match."""
+    text = (row["subject"] + " " + row["body"]).lower()
+    scores: dict[str, int] = {}
+    for category, patterns in CATEGORY_PATTERNS.items():
+        count = sum(1 for p in patterns if re.search(p, text))
+        if count > 0:
+            scores[category] = count
+    if not scores:
+        return None
+    return max(scores, key=lambda k: scores[k])
+
+
+def collect_all_emails(enron_dir: Path) -> list[dict]:
+    results: list[dict] = []
+    mailboxes = sorted(enron_dir.iterdir())
     random.shuffle(mailboxes)
-    selected_mailboxes = mailboxes[:TARGET_MAILBOXES]
-
-    candidates: list[dict] = []
-
-    for mailbox in selected_mailboxes:
-        print(f"  Scanning mailbox: {mailbox.name}")
+    scanned = 0
+    for mailbox in mailboxes:
+        if not mailbox.is_dir():
+            continue
         for folder in mailbox.iterdir():
             if not folder.is_dir():
-                continue
-            folder_lower = folder.name.lower()
-            if not any(t in folder_lower for t in TARGET_FOLDERS):
                 continue
             for email_file in folder.iterdir():
                 if not email_file.is_file():
                     continue
                 parsed = parse_email_file(email_file)
                 if parsed:
-                    candidates.append(parsed)
-
-    return candidates
+                    results.append(parsed)
+        scanned += 1
+        if scanned % 10 == 0:
+            print(f"  Scanned {scanned} mailboxes, {len(results)} valid emails so far...")
+        # Stop early once we have plenty to sample from
+        if len(results) >= 50_000:
+            break
+    return results
 
 
 def main() -> None:
     enron_dir = Path(ENRON_DIR)
     if not enron_dir.exists():
         print(f"ERROR: Enron directory not found at {enron_dir.resolve()}", file=sys.stderr)
-        print("Download from: https://www.cs.cmu.edu/~enron/", file=sys.stderr)
         sys.exit(1)
 
     output_path = Path(OUTPUT_PATH)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
+    random.seed(42)
+
     print(f"Scanning Enron dataset at: {enron_dir.resolve()}")
-    candidates = collect_candidates(enron_dir)
-    print(f"Found {len(candidates)} valid emails across target folders")
+    all_emails = collect_all_emails(enron_dir)
+    print(f"Total valid emails found: {len(all_emails)}")
 
-    if len(candidates) < TARGET_COUNT:
-        print(f"WARNING: only found {len(candidates)} emails, using all of them")
-        sample = candidates
-    else:
-        random.seed(42)
-        sample = random.sample(candidates, TARGET_COUNT)
+    # Shuffle so we don't always pick the same mailboxes
+    random.shuffle(all_emails)
 
+    # Bucket by category
+    buckets: dict[str, list[dict]] = {cat: [] for cat in CATEGORY_TARGETS}
+    uncategorized: list[dict] = []
+
+    for row in all_emails:
+        cat = classify_email(row)
+        if cat and len(buckets[cat]) < CATEGORY_TARGETS[cat] * 5:  # keep pool large
+            buckets[cat].append(row)
+        else:
+            uncategorized.append(row)
+
+    # Sample from each bucket
+    sample: list[dict] = []
     seen_ids: set[str] = set()
-    deduped: list[dict] = []
-    for row in sample:
-        if row["id"] not in seen_ids:
-            seen_ids.add(row["id"])
-            deduped.append(row)
+
+    for cat, target in CATEGORY_TARGETS.items():
+        pool = buckets[cat]
+        random.shuffle(pool)
+        added = 0
+        for row in pool:
+            if row["id"] not in seen_ids and added < target:
+                sample.append(row)
+                seen_ids.add(row["id"])
+                added += 1
+        print(f"  {cat}: {added}/{target} emails selected (pool size: {len(pool)})")
+
+    # Fill remaining slots from uncategorized if needed
+    remaining = TARGET_COUNT - len(sample)
+    if remaining > 0:
+        for row in uncategorized:
+            if row["id"] not in seen_ids and remaining > 0:
+                sample.append(row)
+                seen_ids.add(row["id"])
+                remaining -= 1
+
+    random.shuffle(sample)
+    final = sample[:TARGET_COUNT]
 
     with open(output_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=["id", "from", "to", "cc", "subject", "date", "body"])
+        writer = csv.DictWriter(
+            f, fieldnames=["id", "from", "to", "cc", "subject", "date", "body"]
+        )
         writer.writeheader()
-        writer.writerows(deduped)
+        writer.writerows(final)
 
-    print(f"Wrote {len(deduped)} emails to {output_path.resolve()}")
+    print(f"\nWrote {len(final)} curated emails to {output_path.resolve()}")
+    print("Category breakdown:")
+    cat_counts: dict[str, int] = {}
+    for row in final:
+        cat = classify_email(row) or "uncategorized"
+        cat_counts[cat] = cat_counts.get(cat, 0) + 1
+    for cat, count in sorted(cat_counts.items(), key=lambda x: -x[1]):
+        print(f"  {cat}: {count}")
 
 
 if __name__ == "__main__":
