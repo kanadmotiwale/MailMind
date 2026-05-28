@@ -1,9 +1,7 @@
 import axios from 'axios'
 import type { AgentStatus, Email, EmailsResponse, UploadResponse } from '../types'
 
-const client = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? '/api',
-})
+const client = axios.create({ baseURL: '/api' })
 
 export async function uploadCSV(file: File): Promise<UploadResponse> {
   const form = new FormData()
