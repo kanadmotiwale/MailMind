@@ -10,9 +10,16 @@ interface AgentStatus {
   total: number
   done: boolean
   errors: number
+  lastProcessed: { subject: string; from: string } | null
 }
 
-const status: AgentStatus = { processed: 0, total: 0, done: true, errors: 0 }
+const status: AgentStatus = {
+  processed: 0,
+  total: 0,
+  done: true,
+  errors: 0,
+  lastProcessed: null,
+}
 
 async function runAgentBackground(): Promise<void> {
   const emails = getEmailsWithoutToolCalls()
@@ -20,6 +27,7 @@ async function runAgentBackground(): Promise<void> {
   status.processed = status.total - emails.length
   status.done = false
   status.errors = 0
+  status.lastProcessed = null
 
   const BATCH_SIZE = 5
 
@@ -40,6 +48,10 @@ async function runAgentBackground(): Promise<void> {
           })
         }
         status.processed++
+        status.lastProcessed = {
+          subject: email.subject || '(no subject)',
+          from: email.from_addr || '',
+        }
       })
     )
 

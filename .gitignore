@@ -4,6 +4,7 @@ backend/data/emails.db
 backend/uploads/*
 !backend/uploads/.gitkeep
 data/*.csv
+!data/sample_emails.csv
 .env
 *.log
 .DS_Store

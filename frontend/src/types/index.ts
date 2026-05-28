@@ -32,6 +32,7 @@ export interface AgentStatus {
   total: number
   done: boolean
   errors: number
+  lastProcessed: { subject: string; from: string } | null
 }
 
 export interface UploadResponse {
@@ -43,4 +44,5 @@ export interface UploadResponse {
 export interface EmailsResponse {
   emails: Email[]
   total: number
+  totalAll: number
 }

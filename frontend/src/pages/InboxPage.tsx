@@ -26,14 +26,14 @@ export function InboxPage() {
   )
 
   const emails = data?.emails ?? []
-  const total = data?.total ?? 0
+  const totalAll = data?.totalAll ?? 0
 
   return (
     <div className="flex h-[calc(100vh-56px)] overflow-hidden">
       <div className="w-2/5 flex flex-col min-w-0">
         <EmailList
           emails={emails}
-          total={total}
+          totalAll={totalAll}
           loading={isLoading}
           error={error as Error | null}
           selectedId={selectedId}

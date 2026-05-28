@@ -4,7 +4,7 @@ import Papa from 'papaparse'
 const REQUIRED_COLUMNS = ['id', 'from', 'to', 'subject', 'date', 'body']
 
 interface Props {
-  onFile: (file: File, rowCount: number) => void
+  onFile: (file: File) => void
 }
 
 export function DropZone({ onFile }: Props) {
@@ -34,7 +34,7 @@ export function DropZone({ onFile }: Props) {
           complete(full) {
             const count = full.data.length
             setValid({ file, count })
-            onFile(file, count)
+            onFile(file)
           },
         })
       },

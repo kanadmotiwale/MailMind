@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express'
-import { getEmails, getEmailById } from '../services/db'
+import { getEmails, getEmailById, countEmails } from '../services/db'
 
 const router = Router()
 
@@ -8,7 +8,8 @@ router.get('/', (req: Request, res: Response) => {
   const search = typeof req.query.search === 'string' ? req.query.search : undefined
 
   const emails = getEmails(tool, search)
-  res.json({ emails, total: emails.length })
+  const totalAll = countEmails()
+  res.json({ emails, total: emails.length, totalAll })
 })
 
 router.get('/:id', (req: Request, res: Response) => {

@@ -37,7 +37,7 @@ function relativeDate(dateStr: string) {
 
 interface Props {
   emails: Email[]
-  total: number
+  totalAll: number
   loading: boolean
   error: Error | null
   selectedId: string | null
@@ -51,7 +51,7 @@ interface Props {
 
 export function EmailList({
   emails,
-  total,
+  totalAll,
   loading,
   error,
   selectedId,
@@ -88,7 +88,7 @@ export function EmailList({
           ))}
         </div>
         <p className="text-xs text-gray-400">
-          Showing {emails.length} of {total} emails
+          Showing {emails.length} of {totalAll} emails
         </p>
       </div>
 
