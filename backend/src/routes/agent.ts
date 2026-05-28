@@ -29,34 +29,27 @@ async function runAgentBackground(): Promise<void> {
   status.errors = 0
   status.lastProcessed = null
 
-  const BATCH_SIZE = 5
-
-  for (let i = 0; i < emails.length; i += BATCH_SIZE) {
-    const batch = emails.slice(i, i + BATCH_SIZE)
-
-    await Promise.all(
-      batch.map(async email => {
-        const results = await processEmail(email)
-        for (const result of results) {
-          insertToolCall({
-            id: uuidv4(),
-            email_id: email.id,
-            tool_name: result.toolName,
-            arguments: JSON.stringify(result.arguments),
-            rationale: result.rationale,
-            mock_result: null,
-          })
-        }
-        status.processed++
-        status.lastProcessed = {
-          subject: email.subject || '(no subject)',
-          from: email.from_addr || '',
-        }
+  // Process one at a time with a 4s gap to stay under the free-tier 15 RPM limit
+  for (let i = 0; i < emails.length; i++) {
+    const email = emails[i]
+    const results = await processEmail(email)
+    for (const result of results) {
+      insertToolCall({
+        id: uuidv4(),
+        email_id: email.id,
+        tool_name: result.toolName,
+        arguments: JSON.stringify(result.arguments),
+        rationale: result.rationale,
+        mock_result: null,
       })
-    )
-
-    if (i + BATCH_SIZE < emails.length) {
-      await new Promise(r => setTimeout(r, 1000))
+    }
+    status.processed++
+    status.lastProcessed = {
+      subject: email.subject || '(no subject)',
+      from: email.from_addr || '',
+    }
+    if (i + 1 < emails.length) {
+      await new Promise(r => setTimeout(r, 4000))
     }
   }
 
