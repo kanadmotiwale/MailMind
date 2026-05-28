@@ -17,7 +17,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <div className="min-h-screen bg-gray-50 flex flex-col">
+        <div className="h-screen bg-slate-50 flex flex-col overflow-hidden">
           <Navbar />
           <Routes>
             <Route path="/" element={<Navigate to="/upload" replace />} />
