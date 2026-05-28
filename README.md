@@ -1,5 +1,16 @@
 # MailMind — AI-Powered Email Triage Assistant
 
+## 🚀 Live Demo
+
+| Service | URL |
+|---------|-----|
+| **Frontend** | https://mail-mind-eight.vercel.app |
+| **Backend API** | https://mailmind-wkvj.onrender.com |
+
+> The backend is hosted on Render's free tier — the first request after a period of inactivity may take ~30 seconds to wake up.
+
+---
+
 ## Overview
 
 MailMind lets you upload a CSV of emails and runs an AI agent over every email to recommend which action to take — schedule a meeting, draft a reply, escalate to management, create a task, flag it as urgent, or archive it. Results are displayed in a two-panel inbox UI where you can browse AI recommendations and execute them with one click.
@@ -12,7 +23,7 @@ MailMind lets you upload a CSV of emails and runs an AI agent over every email t
 ┌─────────────────────┐        ┌──────────────────────────────┐
 │   Frontend (React)  │ ──────▶│   Backend API (Express)      │
 │   Vite + Tailwind   │  /api  │   Node.js + TypeScript       │
-│   localhost:5173    │ ◀───── │   localhost:3001             │
+│ mail-mind-eight.    │ ◀───── │ mailmind-wkvj.onrender.com   │
 └─────────────────────┘        └────────┬─────────────────────┘
                                          │
                               ┌──────────┼──────────┐
