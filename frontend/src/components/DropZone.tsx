@@ -48,56 +48,55 @@ export function DropZone({ onFile }: Props) {
     if (file) validateFile(file)
   }
 
-  function handleInput(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (file) validateFile(file)
-  }
-
   return (
     <div className="space-y-3">
       <div
         onDragOver={e => { e.preventDefault(); setDragging(true) }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
-        className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors ${
-          dragging ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-indigo-400 hover:bg-gray-50'
-        }`}
         onClick={() => inputRef.current?.click()}
+        className={`border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-colors ${
+          dragging
+            ? 'border-blue-400 bg-blue-50'
+            : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+        }`}
       >
         <input
           ref={inputRef}
           type="file"
           accept=".csv"
           className="hidden"
-          onChange={handleInput}
+          onChange={e => { const f = e.target.files?.[0]; if (f) validateFile(f) }}
         />
-        <div className="text-4xl mb-3">📂</div>
-        <p className="text-gray-600 font-medium">Drag & drop your emails CSV</p>
-        <p className="text-gray-400 text-sm mt-1">or</p>
+        <svg className="w-8 h-8 mx-auto mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+        </svg>
+        <p className="text-sm font-medium text-slate-600">Drag & drop your emails CSV</p>
+        <p className="text-xs text-slate-400 mt-1 mb-3">or</p>
         <button
           type="button"
-          className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
           onClick={e => { e.stopPropagation(); inputRef.current?.click() }}
+          className="px-4 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
         >
           Browse files
         </button>
-        <p className="text-xs text-gray-400 mt-3">
-          Required columns: {REQUIRED_COLUMNS.join(', ')}
+        <p className="text-xs text-slate-400 mt-3">
+          Required: {REQUIRED_COLUMNS.join(', ')}
         </p>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-red-700 text-sm">
-          <span className="font-semibold">Invalid CSV: </span>{error}
+        <div className="bg-red-50 border border-red-200 rounded-md px-4 py-2.5 text-red-600 text-sm">
+          <span className="font-medium">Invalid CSV — </span>{error}
         </div>
       )}
 
       {valid && (
-        <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-green-700 text-sm flex items-center gap-2">
-          <span className="text-green-500 font-bold">✓</span>
-          <span>
-            Valid CSV — <strong>{valid.count} emails</strong> ready ({valid.file.name})
-          </span>
+        <div className="bg-emerald-50 border border-emerald-200 rounded-md px-4 py-2.5 text-emerald-700 text-sm flex items-center gap-2">
+          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          Valid CSV — <strong>{valid.count} emails</strong> ready ({valid.file.name})
         </div>
       )}
     </div>

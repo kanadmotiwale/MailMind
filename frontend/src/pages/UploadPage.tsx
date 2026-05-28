@@ -8,13 +8,13 @@ import { useAgentRun } from '../hooks/useAgentRun'
 import type { ToolName } from '../types'
 
 const TOOL_LABELS: Record<ToolName, string> = {
-  schedule_meeting: '📅 Meetings',
-  draft_response: '✉️ Drafts',
-  escalate_to_manager: '⚠️ Escalations',
-  create_task: '✅ Tasks',
-  flag_urgent: '🚨 Urgent',
-  archive_no_action: '📁 Archived',
-  agent_error: '❌ Errors',
+  schedule_meeting: 'Meetings',
+  draft_response: 'Drafts',
+  escalate_to_manager: 'Escalations',
+  create_task: 'Tasks',
+  flag_urgent: 'Urgent',
+  archive_no_action: 'Archived',
+  agent_error: 'Errors',
 }
 
 interface Toast {
@@ -36,18 +36,15 @@ export function UploadPage() {
   const toastCounter = useRef(0)
   const prevProcessed = useRef(0)
 
-  // Toast: fire when lastProcessed changes
   useEffect(() => {
     if (!status?.lastProcessed) return
     if (status.processed === prevProcessed.current) return
     prevProcessed.current = status.processed
-
     const id = ++toastCounter.current
-    setToasts(t => [...t.slice(-4), { id, ...status.lastProcessed! }])
+    setToasts(t => [...t.slice(-3), { id, ...status.lastProcessed! }])
     setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3000)
   }, [status?.processed, status?.lastProcessed])
 
-  // Fetch breakdown when done
   useEffect(() => {
     if (phase !== 'done') return
     getEmails().then(res => {
@@ -87,21 +84,25 @@ export function UploadPage() {
   const totalToolCalls = Object.values(toolBreakdown).reduce((a, b) => a + b, 0)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white flex items-center justify-center p-6">
-      <div className="w-full max-w-xl">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+      <div className="w-full max-w-lg">
         <div className="text-center mb-8">
-          <div className="text-5xl mb-3">✉️</div>
-          <h1 className="text-3xl font-bold text-gray-900">MailMind</h1>
-          <p className="text-gray-500 mt-2">AI-powered email triage — upload your CSV to get started</p>
+          <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-semibold text-slate-900">MailMind</h1>
+          <p className="text-slate-500 text-sm mt-1">AI-powered email triage</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg p-8 space-y-6">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 space-y-5">
           {!isProcessing && !isDone && (
             <>
               <DropZone onFile={handleFile} />
 
               {(uploadError || agentError) && (
-                <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-red-600 text-sm">
+                <div className="bg-red-50 border border-red-200 rounded-md px-4 py-2.5 text-red-600 text-sm">
                   {uploadError || agentError}
                 </div>
               )}
@@ -109,7 +110,7 @@ export function UploadPage() {
               <button
                 onClick={handleSubmit}
                 disabled={!selectedFile || uploading}
-                className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="w-full py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm"
               >
                 {uploading ? 'Uploading...' : 'Upload & Analyze Emails'}
               </button>
@@ -117,78 +118,64 @@ export function UploadPage() {
           )}
 
           {isProcessing && (
-            <div className="space-y-5">
-              <div className="flex items-center gap-3 text-sm justify-center">
-                <span className="flex items-center gap-1.5 text-green-600 font-medium">
-                  <span>✓</span> Uploaded
-                </span>
-                <span className="text-gray-300">→</span>
-                <span className="flex items-center gap-1.5 text-indigo-600 font-medium">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm justify-center">
+                <span className="text-emerald-600 font-medium">Uploaded</span>
+                <span className="text-slate-300">→</span>
+                <span className="text-blue-600 font-medium flex items-center gap-1.5">
+                  <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
                   </svg>
-                  AI Analyzing...
+                  Analyzing
                 </span>
-                <span className="text-gray-300">→</span>
-                <span className="text-gray-400">Complete</span>
+                <span className="text-slate-300">→</span>
+                <span className="text-slate-400">Complete</span>
               </div>
-
               <ProgressBar value={status?.processed ?? 0} max={status?.total ?? 1} />
-
-              <p className="text-gray-600 text-sm text-center">
-                {status
-                  ? `Analyzing email ${status.processed} of ${status.total}...`
-                  : 'Starting analysis...'}
+              <p className="text-slate-500 text-sm text-center">
+                {status ? `Analyzing email ${status.processed} of ${status.total}...` : 'Starting...'}
               </p>
-
-              {status && status.errors > 0 && (
-                <p className="text-amber-600 text-xs text-center">
-                  {status.errors} error(s) encountered — processing continues.
-                </p>
-              )}
             </div>
           )}
 
           {isDone && status && (
-            <div className="space-y-5 text-center">
-              <div className="flex items-center gap-3 text-sm justify-center">
-                <span className="text-green-600 font-medium">✓ Uploaded</span>
-                <span className="text-gray-300">→</span>
-                <span className="text-green-600 font-medium">✓ Analyzed</span>
-                <span className="text-gray-300">→</span>
-                <span className="text-green-600 font-medium">✓ Complete</span>
+            <div className="space-y-5">
+              <div className="flex items-center gap-2 text-sm justify-center">
+                {['Uploaded', 'Analyzed', 'Complete'].map((s, i) => (
+                  <span key={s} className="flex items-center gap-2">
+                    {i > 0 && <span className="text-slate-300">→</span>}
+                    <span className="text-emerald-600 font-medium flex items-center gap-1">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      {s}
+                    </span>
+                  </span>
+                ))}
               </div>
 
-              <div className="bg-indigo-50 rounded-xl p-5">
-                <p className="text-xl font-bold text-indigo-700">
-                  {status.total} emails processed · {totalToolCalls} tool calls suggested
+              <div className="bg-slate-50 rounded-lg p-4 border border-slate-100 text-center">
+                <p className="text-slate-800 font-semibold">
+                  {status.total} emails · {totalToolCalls} actions suggested
                 </p>
-
                 {Object.keys(toolBreakdown).length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2 justify-center">
+                  <div className="mt-3 flex flex-wrap gap-1.5 justify-center">
                     {(Object.entries(toolBreakdown) as [ToolName, number][])
                       .filter(([k]) => k !== 'agent_error')
                       .sort((a, b) => b[1] - a[1])
                       .map(([tool, count]) => (
-                        <span
-                          key={tool}
-                          className="bg-white border border-indigo-100 text-indigo-700 text-xs font-medium px-3 py-1 rounded-full"
-                        >
+                        <span key={tool} className="bg-white border border-slate-200 text-slate-600 text-xs px-2.5 py-1 rounded-md">
                           {TOOL_LABELS[tool]}: {count}
                         </span>
                       ))}
                   </div>
                 )}
-
-                {status.errors > 0 && (
-                  <p className="text-amber-600 text-sm mt-2">{status.errors} emails had errors</p>
-                )}
               </div>
 
               <button
                 onClick={() => navigate('/inbox')}
-                className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors"
+                className="w-full py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors text-sm"
               >
                 View Inbox →
               </button>
@@ -200,12 +187,9 @@ export function UploadPage() {
       {/* Toast notifications */}
       <div className="fixed bottom-6 right-6 space-y-2 z-50 pointer-events-none">
         {toasts.map(toast => (
-          <div
-            key={toast.id}
-            className="bg-gray-900 text-white text-xs rounded-lg px-4 py-2.5 shadow-lg max-w-xs animate-pulse"
-          >
-            <p className="font-medium truncate">✓ {toast.subject}</p>
-            <p className="text-gray-400 truncate">{toast.from}</p>
+          <div key={toast.id} className="bg-slate-800 text-white text-xs rounded-lg px-4 py-2.5 shadow-lg max-w-xs">
+            <p className="font-medium truncate">{toast.subject}</p>
+            <p className="text-slate-400 truncate mt-0.5">{toast.from}</p>
           </div>
         ))}
       </div>

@@ -15,34 +15,32 @@ export function Navbar() {
   const totalToolCalls = data?.emails.reduce((acc, e) => acc + e.toolCalls.length, 0) ?? 0
 
   const linkClass = (path: string) =>
-    `px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+    `px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
       pathname === path
-        ? 'bg-indigo-700 text-white'
-        : 'text-indigo-100 hover:bg-indigo-700 hover:text-white'
+        ? 'bg-slate-100 text-slate-900'
+        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
     }`
 
   return (
-    <nav className="bg-indigo-800 shadow-lg">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav className="bg-white border-b border-slate-200">
+      <div className="max-w-screen-xl mx-auto px-6">
         <div className="flex items-center justify-between h-14">
           <div className="flex items-center gap-6">
             <Link to="/" className="flex items-center gap-2">
-              <span className="text-xl">✉️</span>
-              <span className="text-white font-bold text-lg tracking-tight">MailMind</span>
+              <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              <span className="text-slate-900 font-semibold text-base tracking-tight">MailMind</span>
             </Link>
             <div className="flex gap-1">
-              <Link to="/upload" className={linkClass('/upload')}>
-                Upload
-              </Link>
-              <Link to="/inbox" className={linkClass('/inbox')}>
-                Inbox
-              </Link>
+              <Link to="/upload" className={linkClass('/upload')}>Upload</Link>
+              <Link to="/inbox" className={linkClass('/inbox')}>Inbox</Link>
             </div>
           </div>
           {totalEmails > 0 && (
-            <div className="text-indigo-200 text-xs font-mono bg-indigo-900 px-3 py-1 rounded-full">
+            <span className="text-xs text-slate-400 font-mono">
               {totalEmails} emails · {totalToolCalls} tool calls
-            </div>
+            </span>
           )}
         </div>
       </div>
