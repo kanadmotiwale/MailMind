@@ -86,6 +86,32 @@ export function UploadPage() {
   return (
     <div className="flex-1 bg-slate-50 flex items-center justify-center p-6">
       <div className="w-full max-w-lg">
+        {/* Header text */}
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Triage your inbox with AI</h1>
+          <p className="text-slate-500 text-base">
+            Upload a CSV of emails and let the AI agent analyze each one —<br />
+            recommending the right action in seconds.
+          </p>
+        </div>
+
+        {/* How it works */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          {[
+            { step: '1', title: 'Upload CSV', desc: 'Drop your exported email CSV with subject, sender, and body.' },
+            { step: '2', title: 'AI Analyzes', desc: 'Claude reads each email and picks the best action to take.' },
+            { step: '3', title: 'Review & Act', desc: 'Browse suggestions, execute actions, and clear your inbox.' },
+          ].map(({ step, title, desc }) => (
+            <div key={step} className="bg-slate-50 rounded-lg p-4 border border-slate-100 text-center">
+              <div className="w-7 h-7 bg-blue-600 text-white text-xs font-bold rounded-full flex items-center justify-center mx-auto mb-2">
+                {step}
+              </div>
+              <p className="text-sm font-semibold text-slate-700 mb-1">{title}</p>
+              <p className="text-xs text-slate-400 leading-relaxed">{desc}</p>
+            </div>
+          ))}
+        </div>
+
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 space-y-5">
           {!isProcessing && !isDone && (
             <>
